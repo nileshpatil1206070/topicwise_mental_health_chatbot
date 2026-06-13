@@ -11,10 +11,19 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///app.db")
+
+# --- FIX: FORCES AN ABSOLUTE DIRECTORY PATH ---
+# Finds your root folder path automatically on Render's cloud servers
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# Pins app.db to that exact absolute folder layout explicitly
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", 
+    f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}"
+)
+# ----------------------------------------------
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Bind the db object imported from models.py to this app
 db.init_app(app)
 
 # 2. Define the background automated wiping task
