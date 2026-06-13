@@ -91,21 +91,21 @@ def chat(topic_id):
     if request.method == "POST":
         user_msg = request.form.get("message", "").strip()
         if user_msg:
-            # 1. Save user message
+            # 1. Save user question
             db.session.add(ChatMessage(role="user", content=user_msg, topic_id=topic.id))
             db.session.commit()
 
-            # 2. Get AI Reply
+            # 2. Get AI Reply from hf_chat.py
             prompt = f"You are a supportive mental health demo assistant. Topic: {topic.name}. User: {user_msg}. Reply kindly and briefly."
             bot_reply = generate_reply(prompt)
 
-            # --- SAFETY CHECK: Verify the API actually responded ---
-            if not bot_reply or "error" in bot_reply.lower() or "occurred:" in bot_reply.lower():
-                # If Hugging Face is down or busy, provide a friendly system fallback response
-                bot_reply = "System Notice: The free Hugging Face server is currently busy or experiencing high traffic. Please wait a moment and try sending your message again."
-            # -----------------------------------------------------
+            # --- REMOVED THE GENERIC SYSTEM NOTICE BLINDFOLD ---
+            # If bot_reply is completely empty or missing, provide a simple placeholder
+            if not bot_reply:
+                bot_reply = "System Notice: The backend function returned an empty string."
+            # ---------------------------------------------------
 
-            # 3. Save Assistant reply safely
+            # 3. Save the exact text string to the database
             db.session.add(ChatMessage(role="assistant", content=bot_reply, topic_id=topic.id))
             db.session.commit()
 
