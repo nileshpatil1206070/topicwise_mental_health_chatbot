@@ -96,7 +96,7 @@ def chat(topic_id):
             db.session.commit()
 
             # 2. Get AI Reply from hf_chat.py
-            prompt = f"You are a supportive mental health demo assistant. Topic: {topic.name}. User: {user_msg}. Reply kindly and briefly."
+            prompt = f"You are a supportive mental health demo assistant. if topic not related to mental health , simply say , ask related to mental health topics. Topic: {topic.name}. User: {user_msg}. Reply kindly and briefly."
             bot_reply = generate_reply(prompt)
 
             # --- REMOVED THE GENERIC SYSTEM NOTICE BLINDFOLD ---
