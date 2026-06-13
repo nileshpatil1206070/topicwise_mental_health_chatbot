@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="center-container">
+  
+  <header class="app-header">
+    <div class="brand-mark">M</div>
+    <h1>Mental Health Space</h1>
+    <p>A simple, quiet place to manage your discussions.</p>
+  </header>
+
+  <main class="central-card">
+    <section class="form-section">
+      <h2>Create a New Topic</h2>
+      <form method="POST" class="topic-form">
+        <input type="text" name="topic" placeholder="e.g. stress management, depression..." required>
+        <button type="submit">Create Topic</button>
+      </form>
+      <p class="hint">First type your topic or choose from below , if you created topic , click on the created topic shown below to start chatting on that topic.</p>
+    </section>
+
+    <section class="list-section">
+      <div class="section-head">
+        <h2>Active Topics</h2>
+        <span class="count-badge">{{ topics|length }} total</span>
+      </div>
+      
+      <div class="topic-list">
+        {% for topic in topics %}
+          <div class="topic-item">
+            <a href="{{ url_for('chat', topic_id=topic.id) }}" class="topic-link">
+              {{ topic.name }}
+            </a>
+            <form method="POST" action="{{ url_for('delete_topic', topic_id=topic.id) }}" onsubmit="return confirm('Permanently delete this topic and its chat logs?');" class="delete-form">
+              <button type="submit" class="delete-btn">Remove</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <p>Your workspace is currently empty.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Clear Workspace Button Block -->
+    <section class="reset-section">
+      <form method="POST" action="{{ url_for('reset_workspace') }}" onsubmit="return confirm('WARNING: This will permanently wipe all topics and chat history. Proceed?');">
+        <button type="submit" class="reset-btn">Wipe Database & Start Fresh</button>
+      </form>
+    </section>
+  </main>
+
+</div>
+{% endblock %}
