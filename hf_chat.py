@@ -7,8 +7,6 @@ hf_token = os.getenv("HF_API_TOKEN")
 
 # Primary choice model
 MODEL_ID = "google/gemma-4-31B-it"
-
-# 1. Initialize our primary connection client
 client = InferenceClient(model=MODEL_ID, token=hf_token)
 
 def generate_reply(prompt):
@@ -25,29 +23,43 @@ def generate_reply(prompt):
     ]
     
     try:
-        # Try talking to Gemma-4 with a safe 30-second wait window
+        # Try talking to Gemma-4
         response = client.chat_completion(
             messages=messages,
             max_tokens=200,
             temperature=0.7,
             timeout=30  
         )
-        return response.choices[0].message.content
+        
+        # FIX: Try accessing via object attributes, fallback to dictionary style indexing if needed
+        if hasattr(response, "choices") and response.choices:
+            choice = response.choices[0]
+            if hasattr(choice, "message"):
+                return choice.message.content
+            return choice["message"]["content"]
+            
+        return "System Notice: The model sent back an empty response. Please try again."
         
     except Exception as primary_error:
-        print(f"Gemma-4 busy or asleep: {primary_error}. Switching to backup instantly...")
+        print(f"Gemma-4 issue: {primary_error}. Switching to backup instantly...")
         
         try:
-            # 2. BACKUP ROUTE: If Gemma-4 takes too long, use Qwen2.5-72B (incredibly fast & free)
-            backup_client = InferenceClient(model="Qwen/Qwen2.5-72B-Instruct", token=hf_token)
+            # BACKUP ROUTE: Using the ultra-stable, lightning-fast Qwen model endpoint
+            backup_client = InferenceClient(model="Qwen/Qwen3.6-35B-A3B", token=hf_token)
             backup_response = backup_client.chat_completion(
                 messages=messages,
                 max_tokens=200,
                 temperature=0.7,
                 timeout=30
             )
-            return backup_response.choices[0].message.content
+            
+            if hasattr(backup_response, "choices") and backup_response.choices:
+                choice = backup_response.choices[0]
+                if hasattr(choice, "message"):
+                    return choice.message.content
+                return choice["message"]["content"]
+                
+            return "System Notice: Backup model sent empty text."
             
         except Exception as backup_error:
-            # If both servers are fully locked down, return a clean error code for app.py
-            return f"Error: Servers unavailable. Details: {backup_error}"
+            return f"Error: Both servers unavailable. Details: {backup_error}"
