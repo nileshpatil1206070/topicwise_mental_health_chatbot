@@ -1,26 +1,25 @@
 import os
 import requests
+from dotenv import load_dotenv
 
-# 1. HARDCODE YOUR NEW READ TOKEN RIGHT HERE (Bypasses Render's frozen memory cache)
-# Replace the text below with your real token that starts with hf_...
+load_dotenv()
 
-import os
-import requests
+# Securely reads the token from Render's hidden environment variables
+hf_token = os.getenv("HF_API_TOKEN")
 
-# 1. HARDCODED TOKEN: Put your fresh, valid READ token inside the quotes below
-
-HF_API_TOKEN = "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"
 def generate_reply(prompt):
-    # A list of completely different, highly active free open-source models
+    if not hf_token:
+        return "Python Error: The environment variable 'HF_API_TOKEN' is empty or not found on Render."
+
+    # Three highly active, stable open-source models on the free tier
     MODELS_TO_TRY = [
         "Qwen/Qwen2.5-7B-Instruct",
         "google/gemma-2-2b-it",
         "microsoft/Phi-3-mini-4k-instruct"
     ]
     
-    # FIX: Uses the exact hardcoded variable name for authorization
     headers = {
-        "Authorization": f"Bearer {HARDCODED_TOKEN}",
+        "Authorization": f"Bearer {hf_token}",
         "Content-Type": "application/json"
     }
     
@@ -35,13 +34,15 @@ def generate_reply(prompt):
         }
     }
 
-    # Loop through each model path automatically
+    # Tracking errors across each attempted endpoint
+    error_log = []
+
     for model_path in MODELS_TO_TRY:
-        url = f"https://api-inference.huggingface.co/models/{model_path}"
+        url = f"https://huggingface.co{model_path}"
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=15)
             
-            # If the model succeeds, process and return it instantly!
+            # If the model succeeds, return it instantly
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list) and len(data) > 0 and "generated_text" in data:
@@ -50,12 +51,12 @@ def generate_reply(prompt):
                         return raw_text.split("<|assistant|>\n")[-1].strip()
                     return raw_text.replace(prompt, "").strip()
             
-            # Log the skip reason to your Render console
-            print(f"Skipped {model_path} with status code: {response.status_code}")
+            # Record the exact raw server response text if status code is not 200
+            error_log.append(f"[{model_path}] Code {response.status_code}: {response.text}")
             
         except Exception as e:
-            print(f"Connection failed for {model_path}: {e}")
+            error_log.append(f"[{model_path}] Connection Exception: {str(e)}")
             continue
 
-    # Final fallback if all else fails
-    return "The system is currently adjusting its AI server connections. Please wait 10 seconds and try sending your message again."
+    # Returns the absolute raw output logs if every model in the loop fails
+    return "ALL MODELS FAILED. Raw Server Responses:\n\n" + "\n\n".join(error_log)
