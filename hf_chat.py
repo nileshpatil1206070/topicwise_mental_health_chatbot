@@ -5,9 +5,10 @@ from huggingface_hub import InferenceClient
 load_dotenv()
 hf_token = os.getenv("HF_API_TOKEN")
 
+# Primary choice model
 MODEL_ID = "google/gemma-4-31B-it"
 
-# Create the working client connection
+# 1. Initialize our primary connection client
 client = InferenceClient(model=MODEL_ID, token=hf_token)
 
 def generate_reply(prompt):
@@ -24,19 +25,29 @@ def generate_reply(prompt):
     ]
     
     try:
-        # Added a 120-second timeout to give the server plenty of time to wake up!
+        # Try talking to Gemma-4 with a safe 30-second wait window
         response = client.chat_completion(
             messages=messages,
             max_tokens=200,
             temperature=0.7,
-            timeout=120  
+            timeout=30  
         )
+        return response.choices[0].message.content
         
-        # Using YOUR working line of code!
-        if response and response.choices:
-            return response.choices[0].message.content
-        return "System Notice: The model sent back an empty response. Please try again."
+    except Exception as primary_error:
+        print(f"Gemma-4 busy or asleep: {primary_error}. Switching to backup instantly...")
         
-    except Exception as e:
-        # If the server is genuinely down or overloaded, return the error text
-        return f"Error: {e}"
+        try:
+            # 2. BACKUP ROUTE: If Gemma-4 takes too long, use Qwen2.5-72B (incredibly fast & free)
+            backup_client = InferenceClient(model="Qwen/Qwen2.5-72B-Instruct", token=hf_token)
+            backup_response = backup_client.chat_completion(
+                messages=messages,
+                max_tokens=200,
+                temperature=0.7,
+                timeout=30
+            )
+            return backup_response.choices[0].message.content
+            
+        except Exception as backup_error:
+            # If both servers are fully locked down, return a clean error code for app.py
+            return f"Error: Servers unavailable. Details: {backup_error}"
