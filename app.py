@@ -1,7 +1,8 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from dotenv import load_dotenv
-from flask_apscheduler import APScheduler  # 1. Import the background scheduler
+from flask_apscheduler import APScheduler  
+# 1. Import the background scheduler
 
 # Import db directly from models.py
 from models import db, Topic, ChatMessage
