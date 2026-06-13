@@ -23,43 +23,39 @@ def generate_reply(prompt):
     ]
     
     try:
-        # Try talking to Gemma-4
+        # 1. Try fetching response from Gemma-4
         response = client.chat_completion(
             messages=messages,
             max_tokens=200,
             temperature=0.7,
-            timeout=30  
+            timeout=25  # Give Gemma 25 seconds before switching
         )
         
-        # FIX: Try accessing via object attributes, fallback to dictionary style indexing if needed
-        if hasattr(response, "choices") and response.choices:
-            choice = response.choices[0]
-            if hasattr(choice, "message"):
-                return choice.message.content
-            return choice["message"]["content"]
+        # Exact object path syntax required by huggingface_hub
+        if response and response.choices:
+            return response.choices[0].message.content
             
-        return "System Notice: The model sent back an empty response. Please try again."
+        return "Error: Primary model returned an empty choice object."
         
     except Exception as primary_error:
-        print(f"Gemma-4 issue: {primary_error}. Switching to backup instantly...")
+        # This will now safely trigger if Gemma-4 is asleep or times out
+        print(f"Gemma-4 fallback triggered! Reason: {primary_error}")
         
         try:
-            # BACKUP ROUTE: Using the ultra-stable, lightning-fast Qwen model endpoint
+            # 2. BACKUP ROUTE: Fallback to the ultra-fast Qwen model instantly
             backup_client = InferenceClient(model="Qwen/Qwen3.6-35B-A3B", token=hf_token)
             backup_response = backup_client.chat_completion(
                 messages=messages,
                 max_tokens=200,
                 temperature=0.7,
-                timeout=30
+                timeout=25
             )
             
-            if hasattr(backup_response, "choices") and backup_response.choices:
-                choice = backup_response.choices[0]
-                if hasattr(choice, "message"):
-                    return choice.message.content
-                return choice["message"]["content"]
+            if backup_response and backup_response.choices:
+                return backup_response.choices[0].message.content
                 
-            return "System Notice: Backup model sent empty text."
+            return "Error: Backup model returned an empty choice object."
             
         except Exception as backup_error:
-            return f"Error: Both servers unavailable. Details: {backup_error}"
+            # If both servers fail completely, return an explicit trace message
+            return f"Error: Both API models timed out. Details: {backup_error}"
