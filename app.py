@@ -91,12 +91,21 @@ def chat(topic_id):
     if request.method == "POST":
         user_msg = request.form.get("message", "").strip()
         if user_msg:
+            # 1. Save user message
             db.session.add(ChatMessage(role="user", content=user_msg, topic_id=topic.id))
             db.session.commit()
 
-            prompt = f"You are a supportive mental health demo assistant. if topic not related to mental health , simply say , ask related to mental health topics Topic: {topic.name}. User: {user_msg}. Reply kindly and briefly."
+            # 2. Get AI Reply
+            prompt = f"You are a supportive mental health demo assistant. Topic: {topic.name}. User: {user_msg}. Reply kindly and briefly."
             bot_reply = generate_reply(prompt)
 
+            # --- SAFETY CHECK: Verify the API actually responded ---
+            if not bot_reply or "error" in bot_reply.lower() or "occurred:" in bot_reply.lower():
+                # If Hugging Face is down or busy, provide a friendly system fallback response
+                bot_reply = "System Notice: The free Hugging Face server is currently busy or experiencing high traffic. Please wait a moment and try sending your message again."
+            # -----------------------------------------------------
+
+            # 3. Save Assistant reply safely
             db.session.add(ChatMessage(role="assistant", content=bot_reply, topic_id=topic.id))
             db.session.commit()
 
@@ -104,6 +113,7 @@ def chat(topic_id):
 
     messages = ChatMessage.query.filter_by(topic_id=topic.id).order_by(ChatMessage.id.asc()).all()
     return render_template("chat.html", topic=topic, messages=messages)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
